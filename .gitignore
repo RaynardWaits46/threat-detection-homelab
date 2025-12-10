@@ -1,0 +1,79 @@
+# Sensitive Files (NEVER commit these)
+*.key
+*.pem
+*private*
+*password*
+*secret*
+*credential*
+*.pfx
+*.p12
+
+# Configuration files with sensitive data
+*config_private*
+*connection_string*
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# WireGuard configs (may contain private keys)
+wg0.conf
+*.conf.backup
+
+# Splunk sensitive files
+splunk.secret
+passwd
+
+# Windows system files
+Thumbs.db
+desktop.ini
+*.lnk
+
+# Log files (may contain sensitive data)
+*.log
+*.log.*
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+env/
+
+# PowerShell
+*.ps1xml
+
+# Splunk specific
+fishbucket/
+*.idx
+*.dat
+
+# Windows event logs (exported)
+*.evtx
+
+# Test outputs
+test-results/
+test-output/
+output/
+
+# Personal notes (if you want to keep private)
+*PERSONAL*
+*TODO*
+*private-notes*
