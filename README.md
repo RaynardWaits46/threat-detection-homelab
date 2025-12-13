@@ -1,5 +1,9 @@
 # Threat Detection Homelab: A Practical SOC Analyst's Testing Environment
 
+![GitHub last commit](https://img.shields.io/github/last-commit/RaynardWaits46/threat-detection-homelab)
+![GitHub](https://img.shields.io/github/license/RaynardWaits46/threat-detection-homelab)
+![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
+
 A hands-on security lab built to test detection capabilities, hunt for threats, and understand what modern SIEM tools actually catch (and what they miss).
 
 **What's Inside:**
@@ -93,14 +97,15 @@ Here's what I've validated so far:
 - Basic networking knowledge (VLANs, firewall rules)
 
 **Setup Guides:**
-1. [Lab Infrastructure Setup](/docs/lab-setup.md) - Network, VMs, VLAN configuration
-2. [Wazuh-Splunk Integration](/docs/wazuh-splunk-integration.md) - Secure tunnel setup
-3. [Testing Methodology](/docs/testing-methodology.md) - How to test and hunt
+1. [Lab Infrastructure Setup](/docs/lab-setup.md) - Network, VMs, VLAN configuration, WireGuard VPN
+2. [Testing Methodology](/docs/testing-methodology.md) - Threat hunting process and query building
+3. [Detection Gaps Analysis](/docs/detection-gaps.md) - Comprehensive blind spot documentation
 
 **Testing Framework:**
 - Atomic Red Team installation and usage
 - Noise generator for realistic environments
 - Threat hunting query patterns
+- Gap analysis and remediation priorities
 
 ---
 
@@ -150,7 +155,6 @@ Detailed writeups available on [Medium (@raynardwaits)](https://medium.com/@rayn
 ```
 /docs/
   lab-setup.md              # Infrastructure and network config
-  wazuh-splunk-integration.md  # Secure integration guide
   testing-methodology.md    # Threat hunting process
   detection-gaps.md         # Known limitations and blind spots
 
