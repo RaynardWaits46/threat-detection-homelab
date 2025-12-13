@@ -1,7 +1,7 @@
 # Threat Detection Homelab: A Practical SOC Analyst's Testing Environment
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/RaynardWaits46/threat-detection-homelab)
-![GitHub](https://img.shields.io/github/license/RaynardWaits46/threat-detection-homelab)
+![GitHub](![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg))
 ![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 
 A hands-on security lab built to test detection capabilities, hunt for threats, and understand what modern SIEM tools actually catch (and what they miss).
