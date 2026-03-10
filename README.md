@@ -4,224 +4,320 @@
 [![License](https://img.shields.io/github/license/RaynardWaits46/threat-detection-homelab.svg)](https://github.com/RaynardWaits46/threat-detection-homelab/blob/main/LICENSE)
 ![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 
-A hands-on security lab built to test detection capabilities, hunt for threats, and understand what modern SIEM tools actually catch (and what they miss).
+# SOC Homelab: Detection Testing + Honeypot Infrastructure
 
-**What's Inside:**
-- Cloud-hosted Wazuh SIEM integrated with on-premise Splunk
-- Atomic Red Team for standardized technique testing
-- Real threat hunting methodology with documented gaps
-- Complete setup guides so you can build your own
+A production-grade SOC analyst homelab demonstrating hands-on skills in:
+- Multi-SIEM detection engineering and testing
+- Zero-cost honeypot infrastructure deployment
+- Threat hunting and log correlation
+- MITRE ATT&CK framework application
+- Real malware analysis
 
-**Why This Matters:**
-Most SOC training uses simulated data or pre-configured environments. This lab tests real detection tools against actual attack techniques, documenting both successes and blind spots. The goal? Understanding what your SIEM *actually* detects, not what the vendor says it detects.
-
----
-
-## 🎯 What Makes This Lab Different
-
-**Real Detection Gaps:** I document when tools miss techniques and explain why (configuration scope, missing rules, monitored paths).
-
-**Multi-Source Correlation:** Comparing raw Sysmon telemetry (index=sysmon) against SIEM alerts (index=wazuh) reveals detection coverage and blind spots.
-
-**Standardized Testing:** Using Atomic Red Team ensures reproducible results mapped to MITRE ATT&CK framework.
-
-**Hunting Methodology:** Building Splunk queries from scratch, broad to specific, with actual event counts and time windows documented.
+**Built for learning. Documented for sharing. Deployed for real.**
 
 ---
 
-## 🏗️ Lab Architecture
+## 🎯 Project Overview
+
+This homelab serves two primary functions:
+
+### 1. **Multi-SIEM Detection Testing Lab**
+Testing detection capabilities using standardized techniques to identify coverage gaps.
+
+**Components:**
+- **Wazuh** (cloud-hosted on Linode) - SIEM + endpoint monitoring
+- **Splunk Enterprise** (self-hosted in Docker) - Log aggregation and correlation
+- **Sysmon** - Windows endpoint telemetry collection
+- **Atomic Red Team** - Standardized MITRE ATT&CK technique testing
+- **WireGuard VPN** - Secure log transport from cloud to on-premise
+
+**Key Achievements:**
+- Validated defense-in-depth: EDR blocked 1/3 attacks, SIEM caught 2/3 LOLBIN techniques
+- Discovered detection gaps in registry persistence monitoring (Run keys vs Services)
+- Implemented multi-source correlation hunting methodology
+- Mapped coverage to MITRE ATT&CK framework
+
+### 2. **Zero-Cost Honeypot SIEM**
+Capturing and analyzing real-world attacks using isolated honeypot infrastructure.
+
+**Components:**
+- **Raspberry Pi** honeypots (Cowrie SSH/Telnet + Dionaea multi-protocol)
+- **Elastic Stack** (Elasticsearch + Kibana) for log analysis
+- **Filebeat** - Log shipping agent
+- **WireGuard VPN** - Encrypted log delivery tunnel
+- **Advanced firewall isolation** - RFC1918 blocking with tunnel exceptions
+
+**Key Achievements:**
+- Captured **670K+ real attack events** from the internet
+- Analyzed captured malware samples (WannaCry, Conficker, Lockbit variants)
+- Built production-grade network isolation (mimics enterprise DMZ architecture)
+- Achieved **$600/year cost savings** vs cloud alternatives
+- Resolved complex infrastructure issues (7-day Dionaea downtime, JSON logging failures)
+
+---
+
+## 🏗️ Architecture
+
+### Network Topology
 
 ```
-┌─────────────────┐
-│   Kali Linux    │  (Attack simulation)
-│    (VLAN 1)     │
-└────────┬────────┘
-         │ SSH
-         ↓
-┌─────────────────┐
-│  Windows 10 VM  │  (Target endpoint)
-│   (Lab VLAN)    │
-└────────┬────────┘
-         │
-    ┌────┴────┐
-    ↓         ↓
-┌─────────┐ ┌──────────────┐
-│ Sysmon  │ │   Wazuh      │
-│         │ │   Agent      │
-└────┬────┘ └──────┬───────┘
-     │             │
-     │             ↓
-     │      ┌─────────────┐
-     │      │Wazuh Server │ (Cloud - Linode)
-     │      │(Alert Rules)│
-     │      └──────┬──────┘
-     │             │ WireGuard VPN
-     │             ↓
-     └──────→ ┌─────────────┐
-              │   Splunk    │ (Docker - Local)
-              │  Enterprise │
-              └─────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Internet                                  │
+└───────────────┬─────────────────────────────────────────────┘
+                │
+                ├─► Port Forwarding (SSH, Telnet, FTP, SMB, etc.)
+                │
+    ┌───────────▼──────────────┐
+    │  Raspberry Pi (crowdy)   │  ◄─── VLAN 8 (Isolated)
+    │  - Cowrie (SSH/Telnet)   │
+    │  - Dionaea (multi-proto) │
+    │  - Filebeat              │
+    └───────────┬──────────────┘
+                │
+                │ WireGuard Tunnel (10.100.0.0/24)
+                │ Encrypted + RFC1918 Blocked
+                │
+    ┌───────────▼──────────────┐
+    │  SERVER-01               │  ◄─── Lab VLAN (VLAN 10)
+    │  - Elasticsearch         │
+    │  - Kibana                │
+    │  - Splunk Enterprise     │
+    │  - Windows Test VMs      │
+    └──────────────────────────┘
+                ▲
+                │ WireGuard Tunnel (10.0.0.0/24)
+                │
+    ┌───────────┴──────────────┐
+    │  Wazuh Server (Linode)   │  ◄─── Cloud
+    │  - SIEM + Alert Engine   │
+    │  - Sysmon Analysis       │
+    └──────────────────────────┘
 ```
 
-**Key Design Decisions:**
-- **Network Segmentation:** Lab VLAN isolated with unidirectional firewall rules
-- **Secure Integration:** WireGuard VPN tunnel (not exposed Splunk ports)
-- **Dual Visibility:** Raw telemetry (Sysmon) + curated alerts (Wazuh)
-
----
-
-## 📊 Detection Testing Results
-
-Here's what I've validated so far:
-
-| Technique | MITRE ID | Sysmon | Wazuh | Gap | Key Finding |
-|-----------|----------|--------|-------|-----|-------------|
-| Account Discovery (net.exe) | T1087.001 | 100% | 100% | 0% | Excellent coverage, context-aware rules |
-| Account Discovery (query.exe) | T1087.001 | 100% | 0% | 100% | Rule scoped to net.exe only |
-| System Info Discovery | T1082 | 100% | 0% | 100% | No detection rule configured |
-| HKCU Run Keys | T1547.001 | 100% | 0% | 100% | Registry path not monitored |
-| Service Creation | T1543.003 | 100% | 0% | 100% | Monitors NEW services, not config |
-| Permission Groups | T1069.001 | 100% | 33% | 67% | Generic PowerShell only |
-| Remote System Discovery | T1018 | 100% | 100% | 0% | Strong multi-rule coverage |
-
-**Key Insight:** Detection rules exist for SOME techniques but not others. Even when rules exist, they may never fire if the monitored paths don't match your test scenario.
-
----
-
-## 🚀 Quick Start
-
-**Prerequisites:**
-- Windows 10/11 VM (target endpoint)
-- Linux host for Wazuh server (cloud VPS recommended)
-- Docker host for Splunk Enterprise
-- Basic networking knowledge (VLANs, firewall rules)
-
-**Setup Guides:**
-1. [Lab Infrastructure Setup](/docs/lab-setup.md) - Network, VMs, VLAN configuration, WireGuard VPN
-2. [Testing Methodology](/docs/testing-methodology.md) - Threat hunting process and query building
-3. [Detection Gaps Analysis](/docs/detection-gaps.md) - Comprehensive blind spot documentation
-
-**Testing Framework:**
-- Atomic Red Team installation and usage
-- Noise generator for realistic environments
-- Threat hunting query patterns
-- Gap analysis and remediation priorities
-
----
-
-## 📚 Blog Series
-
-Detailed writeups available on [Medium (@raynardwaits)](https://medium.com/@raynardwaits):
-
-**Integration Series:**
-- Part 1: WireGuard Setup and Security Rationale
-- Part 2: Splunk Forwarder Configuration  
-- Part 3: Troubleshooting and Validation
+### Data Flow
 
 **Detection Testing:**
-- Testing RAT Detection: Why Modern Defender Makes Blue Team Testing Harder
-- Testing Custom Payloads Against Behavioral Detection
-- Hunting Through the Gaps: Multi-Source Correlation
-- Testing Registry Persistence Detection: When Rules Exist But Never Fire
-- Testing Account Discovery with Atomic Red Team
+```
+Windows VM → Sysmon → Wazuh Agent → Cloud Wazuh → Splunk Forwarder (via VPN) → Splunk
+         └──────────→ Splunk Universal Forwarder → Splunk
+```
 
-**Persistence Hunting:**
-- Part 1: Finding Malicious Services and Tasks Among 1,400 Events
-- Part 2: Registry Run Keys and the Technical Details That Matter
+**Honeypot Attacks:**
+```
+Internet → Honeypots → JSON Logs → Filebeat → WireGuard → Elasticsearch → Kibana Dashboards
+```
 
 ---
 
-## 🔧 Tech Stack
+## 🛠️ Technology Stack
 
-**SIEM & Logging:**
-- Wazuh 4.x (cloud-hosted)
-- Splunk Enterprise 9.x (Docker)
+**Security Tools:**
+- Wazuh 4.x (SIEM, XDR)
+- Splunk Enterprise 9.x
 - Sysmon (SwiftOnSecurity config)
-
-**Testing Tools:**
 - Atomic Red Team
-- Kali Linux
-- Custom PowerShell noise generator
+- Cowrie 1.9.1 (SSH/Telnet honeypot)
+- Dionaea 1.9.1 (multi-protocol honeypot)
+- Filebeat 8.11.0
+- Elasticsearch 8.11.0
+- Kibana 8.11.0
 
 **Infrastructure:**
-- UniFi networking (VLANs, firewall rules)
-- WireGuard VPN
-- Docker Desktop
+- WireGuard (VPN tunneling)
+- Docker / Docker Compose
+- UniFi Networking (Cloud Gateway Max, VLANs)
+- iptables (advanced firewall rules)
+
+**Platforms:**
+- Raspberry Pi (ARM64, Raspberry Pi OS)
+- Ubuntu 24.04 LTS (cloud)
+- Windows Server 2025
+- Windows 10/11 (test endpoints)
+
+**Languages & Scripting:**
+- PowerShell (testing, automation)
+- Bash (firewall scripts, deployment)
+- Python (data analysis, future malware analysis)
 
 ---
 
-## 📖 Documentation Structure
+## 📊 Key Findings & Learnings
 
+### Detection Testing Insights
+
+**Week 1-2: Signature-Based Detection**
+- ✅ Windows Defender blocked RAT installation immediately (known signature)
+- ✅ Wazuh alerted on Meterpreter process creation
+- ❌ Custom-encoded payloads bypassed signature detection
+- **Takeaway:** Signatures catch known threats, behavioral detection needed for novel attacks
+
+**Week 3: Credential Access Techniques**
+- ✅ LSASS memory dumps detected by Wazuh (T1003.001)
+- ✅ Registry credential searches caught in Splunk Sysmon logs
+- ❌ Chrome password extraction had no Wazuh rules (Splunk visibility only)
+- **Takeaway:** Defense-in-depth matters; neither tool alone provides complete coverage
+
+**Week 4-5: Persistence & Discovery**
+- ✅ Service creation detected (registry monitoring)
+- ❌ Run key persistence completely missed (configuration gap)
+- ✅ `net user` discovery commands detected by custom Wazuh rules
+- **Takeaway:** Detection rules are only as good as their scope; test everything
+
+### Honeypot Infrastructure Insights
+
+**Attack Patterns (670K+ events):**
+- **Top targeted services:** SSH (22), MySQL (3306), SMB (445), MSSQL (1433)
+- **Geographic distribution:** China, Russia, US, Germany (top sources)
+- **Common credentials:** root/admin, admin/admin, root/password, admin/123456
+- **Malware families:** WannaCry variants, Conficker, Lockbit, Mirai
+
+**Technical Challenges Solved:**
+- **Dionaea crash-loop (7,114 restarts):** Three root causes (permissions, path config, handler timing)
+- **WireGuard port drift:** Fixed with explicit `ListenPort` configuration
+- **Firewall rule ordering:** Tunnel subnet exceptions must precede RFC1918 blocks
+- **Log volume management:** Implemented aggressive rotation (50MB max, hourly checks)
+
+**Cost Optimization:**
+- Cloud SIEM quote: $40-50/month ($480-600/year)
+- Self-hosted solution: $0/month (existing hardware)
+- **Annual savings:** $480-600
+
+---
+
+## 📝 Documentation & Blog Posts
+
+I document the entire journey on [Medium (@raynardwaits)](https://medium.com/@raynardwaits):
+
+**Honeypot Series:**
+- "When Your Honeypot Crashes 7,000 Times" - Dionaea debugging deep-dive
+- "722 Attacks, Zero Malware: Infrastructure Troubleshooting" - Root cause analysis
+- "Building a Zero-Cost Honeypot SIEM" - Architecture and deployment (4-part series)
+
+**Detection Testing Series:**
+- "Testing RAT Detection: Why Modern Defender Makes Blue Team Testing Harder"
+- "When EDR Blocks Before Your SIEM Can See" - Defense-in-depth validation
+- "Hidden in Plain Sight: Tool Obfuscation and Detection Evasion"
+- "Testing Registry Persistence Detection: When Rules Exist But Never Fire"
+- "Hunting for Persistence: Finding Malicious Services Among 1,400 Events"
+
+**Integration & Setup:**
+- "Integrating Cloud-Hosted Wazuh with On-Premise Splunk" (3-part series)
+- "WireGuard VPN for Secure SIEM Log Transport"
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+**Hardware:**
+- 1x Raspberry Pi 4 (4GB+ RAM recommended)
+- 1x Server/PC for Elastic Stack (16GB+ RAM, 4+ cores)
+- UniFi gateway (or other VLAN-capable router)
+
+**Software:**
+- Docker & Docker Compose
+- WireGuard
+- Linux experience (Debian/Ubuntu)
+
+### Quick Setup
+
+**1. Deploy Honeypots (Raspberry Pi):**
+
+```bash
+# Clone Dionaea/Cowrie configs
+git clone https://github.com/RaynardWaits46/threat-detection-homelab
+cd honeypot-configs
+
+# Deploy with Docker Compose
+docker-compose up -d
+
+# Apply firewall rules (CRITICAL - prevents network pivoting)
+sudo bash firewall-honeypot.sh
 ```
-/docs/
-  lab-setup.md              # Infrastructure and network config
-  testing-methodology.md    # Threat hunting process
-  detection-gaps.md         # Known limitations and blind spots
 
-/configs/
-  sysmon-config.xml         # Sysmon configuration (SwiftOnSecurity-based)
-  wazuh-agent-sample.conf   # Sample Wazuh agent config
+**2. Configure WireGuard Tunnel:**
 
-/scripts/
-  noise-generator.ps1       # Background activity simulator
-  cleanup-scripts/          # Test cleanup automation
+```bash
+# Generate keys
+wg genkey | tee privatekey | wg pubkey > publickey
+
+# Configure interface (see configs/wireguard/)
+sudo nano /etc/wireguard/wg0.conf
+
+# Enable and start
+sudo systemctl enable wg-quick@wg0
+sudo systemctl start wg-quick@wg0
 ```
 
----
+**3. Deploy Elastic Stack (SERVER-01):**
 
-## 💡 Key Learnings
+```bash
+cd elastic-stack
+docker-compose up -d
 
-**Detection Coverage Varies by Tactic:**
-- Discovery techniques: Well-covered (Wazuh has mature rules)
-- Persistence techniques: Significant gaps (limited registry path monitoring)
+# Verify
+curl http://localhost:9200
+```
 
-**Context-Aware Detection Matters:**
-- PowerShell spawning net.exe triggers different rules than System spawning net.exe
-- Reduces false positives significantly
+**4. Configure Filebeat (Pi):**
 
-**Command Variations Require Wildcards:**
-- Spacing differences: `net  view` vs `net view`
-- Quote escaping: PowerShell parameters show as `\"` in logs
-- Solution: Strategic wildcard usage (`*net*view*`)
+```bash
+# Install and configure
+sudo dpkg -i filebeat-8.11.0-arm64.deb
+sudo nano /opt/filebeat/filebeat.yml
 
-**Raw Telemetry vs Alerts:**
-- Sysmon captures everything (100% visibility)
-- Wazuh only alerts when rules match (selective coverage)
-- Gap analysis reveals detection blind spots
+# Start service
+sudo systemctl enable filebeat
+sudo systemctl start filebeat
+```
 
----
+**5. Create Kibana Dashboards:**
 
-## 🎯 What's Next
-
-**Week 3 Focus Options:**
-- Credential Access techniques (T1003, T1552)
-- Lateral Movement testing (T1021, T1570)
-- Defense Evasion validation (T1562, T1070)
-
-**Roadmap:**
-- Create custom Wazuh rules for missing techniques
-- Build Splunk correlation searches
-- Automate detection gap reporting
-- MITRE ATT&CK coverage heatmap
+Access Kibana at `http://localhost:5601` and import provided dashboard JSONs from `configs/kibana/`.
 
 ---
 
-## 🤝 Contributing
+## 📈 Future Enhancements
 
-Found a better way to test something? Discovered a new detection gap? Open an issue or PR. This lab is a learning environment, and improvements are always welcome.
+**Short-term:**
+- [ ] VirusTotal API integration for automated hash lookups
+- [ ] Malware sandbox for dynamic analysis (isolated VM)
+- [ ] Custom Splunk correlation rules for multi-stage attacks
+- [ ] SOAR integration (TheHive + Cortex)
+
+**Long-term:**
+- [ ] Machine learning for anomaly detection
+- [ ] Threat intelligence feed integration
+- [ ] Automated IOC extraction and blocking
+- [ ] Expanding to additional honeypot types (WordPress, IoT devices)
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## 📝 License
+## 📧 Contact
 
-MIT License - Use this setup for your own learning and testing.
+**Ian Harding (WH1ZW1T)**
+- Email: hardingian@proton.me
+- Blog: [medium.com/@raynardwaits](https://medium.com/@raynardwaits)
+- LinkedIn: [linkedin.com/in/ianharding33](https://www.linkedin.com/in/ianharding33/)
+- Website: [wh1zw1t.com](https://wh1zw1t.com)
+
+---
+
+## 🙏 Acknowledgments
+
+- [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) for standardized testing framework
+- [SwiftOnSecurity](https://github.com/SwiftOnSecurity/sysmon-config) for Sysmon configuration
+- [Wazuh](https://wazuh.com/) and [Elastic](https://www.elastic.co/) for excellent documentation
+- The cybersecurity community for continuous learning and inspiration
 
 ---
 
-## ⚠️ Disclaimer
-
-This lab is for authorized security testing and education only. Techniques demonstrated here should only be used in controlled environments you own or have explicit permission to test.
-
----
 
 **Built with:** ☕ Coffee, 🔍 Curiosity, and a healthy appreciation for when things don't work as expected.
